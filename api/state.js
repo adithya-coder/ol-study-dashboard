@@ -1,12 +1,23 @@
 // Vercel Serverless Function: /api/state
-// GET  /api/state        → returns full state
-// POST /api/state        → saves full state
-// POST /api/state?key=X  → saves single module
+// Uses Upstash Redis for persistent storage on Vercel
+// Falls back to in-memory if Redis not configured
 
 let memoryState = null;
 
+async function getRedis() {
+  try {
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      const { Redis } = await import('@upstash/redis');
+      return new Redis({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN
+      });
+    }
+  } catch (e) {}
+  return null;
+}
+
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,17 +26,12 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Try Vercel KV
-  let kv = null;
-  try {
-    const mod = await import('@vercel/kv');
-    kv = mod.kv;
-  } catch (e) {}
+  const redis = await getRedis();
 
   if (req.method === 'GET') {
     try {
-      if (kv) {
-        const state = await kv.get('app_state');
+      if (redis) {
+        const state = await redis.get('app_state');
         return res.status(200).json(state || null);
       }
       return res.status(200).json(memoryState);
@@ -40,19 +46,19 @@ export default async function handler(req, res) {
       const body = req.body;
 
       if (key) {
-        // Save single module: POST /api/state?key=syllabus
+        // Save single module
         let state = {};
-        if (kv) {
-          state = (await kv.get('app_state')) || {};
+        if (redis) {
+          state = (await redis.get('app_state')) || {};
         } else {
           state = memoryState || {};
         }
         state[key] = body;
-        if (kv) await kv.set('app_state', state);
+        if (redis) await redis.set('app_state', state);
         memoryState = state;
       } else {
-        // Save full state: POST /api/state
-        if (kv) await kv.set('app_state', body);
+        // Save full state
+        if (redis) await redis.set('app_state', body);
         memoryState = body;
       }
 

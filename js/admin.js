@@ -11,6 +11,8 @@
 
 import SyllabusTracker from './syllabus.js';
 import StorageEngine from './storage.js';
+import UIRenderer from './ui.js';
+import StudyPlanner from './planner.js';
 import { SYLLABUS_DATA } from './syllabus-data.js';
 
 /** Whether the admin is currently authenticated */
@@ -71,6 +73,9 @@ const AdminPanel = {
 
     // Save state
     StorageEngine.saveModule('ol_syllabus', state);
+
+    // Re-render syllabus page
+    UIRenderer.renderSubjectCards(SyllabusTracker.getState(), StudyPlanner.getTodaysPlan());
   },
 
   /**
@@ -93,6 +98,9 @@ const AdminPanel = {
 
     // Save state
     StorageEngine.saveModule('ol_syllabus', state);
+
+    // Re-render syllabus page
+    UIRenderer.renderSubjectCards(SyllabusTracker.getState(), StudyPlanner.getTodaysPlan());
   },
 
   /**

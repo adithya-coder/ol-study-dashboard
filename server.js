@@ -39,7 +39,10 @@ app.post('/api/state', (req, res) => {
       // Save single module
       let state = {};
       if (existsSync(DATA_FILE)) {
-        state = JSON.parse(readFileSync(DATA_FILE, 'utf8')) || {};
+        const raw = JSON.parse(readFileSync(DATA_FILE, 'utf8'));
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          state = raw;
+        }
       }
       state[key] = req.body;
       writeFileSync(DATA_FILE, JSON.stringify(state, null, 2), 'utf8');
