@@ -23,6 +23,7 @@ import SettingsModule from './settings.js';
 import UIRenderer from './ui.js';
 import EventBus from './event-bus.js';
 import { initSettingsUI } from './settings-ui.js';
+import AdminPanel from './admin.js';
 
 // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -620,6 +621,9 @@ async function initialize() {
     // Step 16: Wire settings form inputs and export/import buttons
     wireSettingsForm();
     initSettingsUI();
+
+    // Step 17: Initialize admin panel
+    AdminPanel.initialize();
 
     // Handle initial hash-based routing
     const hash = window.location.hash.replace('#', '');

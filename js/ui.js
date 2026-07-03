@@ -31,7 +31,8 @@ const VIEW_SECTIONS = {
   revision: 'view-revision',
   'past-papers': 'view-past-papers',
   analytics: 'view-analytics',
-  settings: 'view-settings'
+  settings: 'view-settings',
+  admin: 'view-admin'
 };
 
 /** Exam weight display labels (Sinhala) */

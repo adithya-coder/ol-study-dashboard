@@ -50,7 +50,7 @@ const StorageEngine = {
     const propName = key.replace('ol_', '');
     cachedState[propName] = data;
 
-    fetch(`/api/module/${propName}`, {
+    fetch(`/api/state?key=${propName}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
