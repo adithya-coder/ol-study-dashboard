@@ -1,0 +1,11 @@
+node_modules/
+data/
+.kiro/
+_bmad/
+_bmad_config/
+design-artifacts/
+doc/
+docs/
+tests/
+*.bat
+vitest.config.js

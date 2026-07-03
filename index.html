@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="si" data-bs-theme="light" data-theme="ocean">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="O/L 2026 විභාගයට සූදානම් වීමට ස්මාර්ට් අධ්‍යයන උපකරණ පුවරුව">
+  <meta name="theme-color" content="#1E88E5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="OL Study">
+  <title>O/L 2026 ස්මාර්ට් අධ්‍යයන උපකරණ පුවරුව</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <!-- Bootstrap 5 CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- Project CSS (after Bootstrap) -->
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/dark-mode.css">
+  <style>
+    body{font-family:'Noto Sans Sinhala',system-ui,sans-serif;overflow-x:hidden}
+    .navbar-brand{font-size:1rem}
+    #loading-overlay{position:fixed;inset:0;z-index:9999;background:rgba(255,255,255,0.97);align-items:center;justify-content:center;flex-direction:column;gap:1rem}
+    [data-bs-theme="dark"] #loading-overlay{background:rgba(33,37,41,0.97)}
+    #error-overlay{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.8);align-items:center;justify-content:center}
+    .countdown-value{font-size:2.2rem;font-weight:700;line-height:1}
+    .countdown-label{font-size:.7rem;opacity:.75;letter-spacing:.5px}
+    .stat-value{font-size:1.6rem;font-weight:700}
+    .view-section{display:none}.view-section.active{display:block}
+    .sidebar-desktop .nav-link.active{background:color-mix(in srgb, var(--ol-primary) 10%, transparent);color:var(--ol-primary);font-weight:600;border-radius:.375rem}
+    .bottom-nav-link{text-decoration:none;color:var(--bs-body-color);font-size:.65rem;text-align:center;padding:.35rem .1rem}
+    .bottom-nav-link.active,.bottom-nav-link:hover{color:var(--ol-primary)}
+    .bottom-nav-link i{font-size:1.2rem;display:block;margin-bottom:2px}
+    #floating-progress-btn{position:fixed;bottom:70px;right:16px;width:52px;height:52px;border-radius:50%;z-index:1040;font-weight:700;font-size:.75rem;border:none;background:var(--ol-gradient);color:#fff;box-shadow:0 4px 12px rgba(30,136,229,.4);display:flex;align-items:center;justify-content:center}
+    @media(min-width:992px){#floating-progress-btn{bottom:24px}.mobile-bottom-nav{display:none!important}}
+    @media(max-width:991.98px){.sidebar-desktop{display:none!important}}
+  </style>
+  <script>
+    window.onerror=function(msg,url,line,col,err){document.title='ERROR: '+msg;document.body.innerHTML='<pre style="padding:20px;color:red;font-size:14px;">ERROR: '+msg+'\nFile: '+url+':'+line+'\n'+(err&&err.stack?err.stack:'')+'</pre>'};
+    window.addEventListener('unhandledrejection',function(e){document.title='PROMISE ERROR: '+e.reason;document.body.innerHTML='<pre style="padding:20px;color:red;font-size:14px;">PROMISE ERROR: '+e.reason+'\n'+(e.reason&&e.reason.stack?e.reason.stack:'')+'</pre>'});
+  </script>
+  <script src="lib/chart.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" style="display:flex">
+    <div class="text-center">
+      <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem" role="status">
+        <span class="visually-hidden">පූරණය වෙමින්...</span>
+      </div>
+      <p class="text-body-secondary fs-6">යෙදුම සූදානම් වෙමින් පවතී...</p>
+    </div>
+  </div>
+
+  <!-- Error Overlay -->
+  <div id="error-overlay" style="display:none">
+    <div class="card shadow-lg text-center p-4" style="max-width:400px;width:90%">
+      <i class="bi bi-exclamation-triangle-fill text-warning fs-1 mb-2"></i>
+      <h2 class="fs-5 mb-2">දෝෂයක් සිදු විය</h2>
+      <p id="error-message" class="text-danger small mb-3"></p>
+      <button id="error-retry-btn" class="btn btn-primary"><i class="bi bi-arrow-clockwise me-1"></i>නැවත උත්සාහ කරන්න</button>
+    </div>
+  </div>
+
+  <!-- Notification Container -->
+  <div id="notification-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1090" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- App Shell -->
+  <div id="app" style="display:none">
+
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-dark sticky-top shadow-sm" style="background:var(--ol-navbar-bg, #1E88E5)">
+      <div class="container-fluid">
+        <button class="btn text-white d-lg-none border-0 p-1 me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNav" aria-label="මෙනුව">
+          <i class="bi bi-list fs-4"></i>
+        </button>
+        <a class="navbar-brand fw-bold" href="#dashboard" data-view="dashboard">
+          <i class="bi bi-book me-1"></i>O/L 2026 අධ්‍යයන පුවරුව
+        </a>
+      </div>
+    </nav>
+
+    <div class="container-fluid">
+      <div class="row">
+
+        <!-- Desktop Sidebar -->
+        <aside class="col-lg-3 col-xl-2 sidebar-desktop border-end py-3" style="min-height:calc(100vh - 56px)">
+          <nav aria-label="ප්‍රධාන සංචාලනය">
+            <ul class="nav flex-column gap-1 px-2">
+              <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 px-3 py-2 active" href="#dashboard" data-view="dashboard"><i class="bi bi-house-door"></i>මුල් පිටුව</a></li>
+              <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 px-3 py-2" href="#syllabus" data-view="syllabus"><i class="bi bi-journal-bookmark"></i>විෂය නිර්දේශය</a></li>
+              <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 px-3 py-2" href="#planner" data-view="planner"><i class="bi bi-calendar-check"></i>අධ්‍යයන සැලසුම</a></li>
+              <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 px-3 py-2" href="#progress" data-view="progress"><i class="bi bi-bar-chart-line"></i>ප්‍රගතිය</a></li>
+              <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 px-3 py-2" href="#revision" data-view="revision"><i class="bi bi-arrow-repeat"></i>පුනරාවලෝකනය</a></li>
+              <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 px-3 py-2" href="#past-papers" data-view="past-papers"><i class="bi bi-file-earmark-text"></i>පසුගිය ප්‍රශ්න පත්‍ර</a></li>
+              <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 px-3 py-2" href="#analytics" data-view="analytics"><i class="bi bi-graph-up"></i>විශ්ලේෂණ</a></li>
+              <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 px-3 py-2" href="#settings" data-view="settings"><i class="bi bi-gear"></i>සැකසුම්</a></li>
+            </ul>
+          </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="col-lg-9 col-xl-10 py-3 px-3 px-lg-4 pb-5 pb-lg-3">
+
+          <!-- Dashboard View -->
+          <section id="view-dashboard" class="view-section active" aria-label="මුල් පිටුව">
+            <!-- Countdown -->
+            <div class="card border-0 shadow-sm mb-4 text-white" style="background:var(--ol-gradient, linear-gradient(135deg,#1E88E5,#1565C0))">
+              <div class="card-body text-center py-4">
+                <h5 class="mb-3"><i class="bi bi-hourglass-split me-2"></i>විභාගයට ඉතිරි කාලය</h5>
+                <div class="d-flex justify-content-center gap-3 gap-md-4">
+                  <div class="text-center"><div id="countdown-days" class="countdown-value">--</div><div class="countdown-label">දින</div></div>
+                  <div class="text-center"><div id="countdown-hours" class="countdown-value">--</div><div class="countdown-label">පැය</div></div>
+                  <div class="text-center"><div id="countdown-minutes" class="countdown-value">--</div><div class="countdown-label">මිනිත්තු</div></div>
+                  <div class="text-center"><div id="countdown-seconds" class="countdown-value">--</div><div class="countdown-label">තත්පර</div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="row g-3 mb-4">
+              <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body text-center py-3">
+                    <div class="text-muted small mb-1"><i class="bi bi-star-fill text-warning"></i> XP</div>
+                    <div id="dashboard-xp" class="stat-value text-primary">0</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body text-center py-3">
+                    <div class="text-muted small mb-1"><i class="bi bi-trophy-fill text-success"></i> මට්ටම</div>
+                    <div id="dashboard-level" class="stat-value text-success">1</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body text-center py-3">
+                    <div class="text-muted small mb-1"><i class="bi bi-pie-chart-fill text-info"></i> ප්‍රගතිය</div>
+                    <div id="dashboard-progress" class="stat-value text-info">0%</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body text-center py-3">
+                    <div class="text-muted small mb-1"><i class="bi bi-fire text-danger"></i> අඛණ්ඩ දින</div>
+                    <div id="dashboard-streak" class="stat-value text-warning">0</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card border-0 shadow-sm mb-4">
+              <div class="card-header bg-transparent border-bottom-0 pt-3">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-bar-chart me-2 text-info"></i>📊 ඉක්මන් සංඛ්‍යාලේඛන</h6>
+              </div>
+              <div id="dashboard-quick-stats" class="card-body pt-2">
+                <p class="text-muted mb-0">පූරණය වෙමින්...</p>
+              </div>
+            </div>
+
+            <!-- Today Plan -->
+            <div class="card border-0 shadow-sm mb-4">
+              <div class="card-header bg-transparent border-bottom-0 pt-3">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-calendar-day me-2 text-primary"></i>අද අධ්‍යයන සැලසුම</h6>
+              </div>
+              <div class="card-body pt-2">
+                <div id="today-plan-list"></div>
+              </div>
+            </div>
+
+            <!-- Badges -->
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-transparent border-bottom-0 pt-3">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-award me-2 text-warning"></i>ජයග්‍රහණ</h6>
+              </div>
+              <div class="card-body pt-2">
+                <div id="dashboard-badges-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Syllabus View -->
+          <section id="view-syllabus" class="view-section" hidden aria-label="විෂය නිර්දේශය">
+            <h4 class="fw-bold mb-3"><i class="bi bi-journal-bookmark me-2 text-primary"></i>විෂය නිර්දේශය</h4>
+            <div id="syllabus-subjects"></div>
+          </section>
+
+          <!-- Planner View -->
+          <section id="view-planner" class="view-section" hidden aria-label="අධ්‍යයන සැලසුම">
+            <h4 class="fw-bold mb-3"><i class="bi bi-calendar-check me-2 text-primary"></i>අධ්‍යයන සැලසුම</h4>
+            <div id="planner-warning" class="alert alert-warning d-flex align-items-center" role="alert" hidden>
+              <i class="bi bi-exclamation-triangle-fill me-2"></i><span></span>
+            </div>
+            <div id="planner-daily-plan"></div>
+          </section>
+
+          <!-- Progress View -->
+          <section id="view-progress" class="view-section" hidden aria-label="ප්‍රගතිය">
+            <h4 class="fw-bold mb-3"><i class="bi bi-bar-chart-line me-2 text-primary"></i>ප්‍රගතිය</h4>
+            <div id="progress-overall" class="mb-4"></div>
+            <div id="progress-subjects"></div>
+          </section>
+
+          <!-- Revision View -->
+          <section id="view-revision" class="view-section" hidden aria-label="පුනරාවලෝකනය">
+            <h4 class="fw-bold mb-3"><i class="bi bi-arrow-repeat me-2 text-primary"></i>පුනරාවලෝකනය</h4>
+            <div id="revision-today" class="mb-4"></div>
+            <div id="revision-queues"></div>
+          </section>
+
+          <!-- Past Papers View -->
+          <section id="view-past-papers" class="view-section" hidden aria-label="පසුගිය ප්‍රශ්න පත්‍ර">
+            <h4 class="fw-bold mb-3"><i class="bi bi-file-earmark-text me-2 text-primary"></i>පසුගිය ප්‍රශ්න පත්‍ර</h4>
+            <div id="past-papers-subjects"></div>
+          </section>
+
+          <!-- Analytics View -->
+          <section id="view-analytics" class="view-section" hidden aria-label="විශ්ලේෂණ">
+            <h4 class="fw-bold mb-3"><i class="bi bi-graph-up me-2 text-primary"></i>විශ්ලේෂණ</h4>
+            <div id="analytics-stats" class="mb-4"></div>
+            <div id="analytics-weak-subjects" class="mb-4"></div>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <div class="card border-0 shadow-sm"><div class="card-body"><canvas id="chart-subject-progress"></canvas></div></div>
+              </div>
+              <div class="col-md-6">
+                <div class="card border-0 shadow-sm"><div class="card-body"><canvas id="chart-overall-progress"></canvas></div></div>
+              </div>
+            </div>
+            <div id="analytics-readiness"></div>
+          </section>
+
+          <!-- Settings View -->
+          <section id="view-settings" class="view-section" hidden aria-label="සැකසුම්">
+            <h4 class="fw-bold mb-3"><i class="bi bi-gear me-2 text-primary"></i>සැකසුම්</h4>
+            <div class="card border-0 shadow-sm">
+              <div class="card-body p-4">
+                <div class="row g-4">
+                  <div class="col-md-6">
+                    <label for="settings-exam-date" class="form-label fw-semibold"><i class="bi bi-calendar-event me-1"></i>විභාග දිනය</label>
+                    <input type="date" id="settings-exam-date" class="form-control">
+                    <div id="settings-exam-date-error" class="invalid-feedback" hidden></div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="settings-max-lessons" class="form-label fw-semibold"><i class="bi bi-list-ol me-1"></i>දිනකට උපරිම පාඩම් ගණන (1-15)</label>
+                    <input type="number" id="settings-max-lessons" class="form-control" min="1" max="15" value="8">
+                    <div id="settings-max-lessons-error" class="invalid-feedback" hidden></div>
+                  </div>
+                  <div class="col-12">
+                    <label for="settings-theme" class="form-label fw-semibold"><i class="bi bi-palette me-1"></i>තේමාව තෝරන්න</label>
+                    <select id="settings-theme" class="form-select">
+                      <option value="ocean">🌊 සාගර නිල්</option>
+                      <option value="forest">🌲 වන හරිත</option>
+                      <option value="purple">👑 රාජකීය දම්</option>
+                      <option value="sunset">🌅 සන්ධ්‍යා තැඹිලි</option>
+                      <option value="dark">🌙 රාත්‍රී අඳුරු</option>
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <hr>
+                    <h6 class="fw-semibold mb-3"><i class="bi bi-database me-2"></i>දත්ත කළමනාකරණය</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                      <button id="settings-export-btn" class="btn btn-outline-primary"><i class="bi bi-download me-1"></i>දත්ත නිර්යාත කරන්න</button>
+                      <button id="settings-import-btn" class="btn btn-outline-secondary"><i class="bi bi-upload me-1"></i>දත්ත ආයාත කරන්න</button>
+                      <input type="file" id="settings-import-file" accept=".json" hidden>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+
+    <!-- Mobile Offcanvas Navigation -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileNav" aria-labelledby="mobileNavLabel">
+      <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title fw-bold" id="mobileNavLabel"><i class="bi bi-book me-2 text-primary"></i>සංචාලනය</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="වසන්න"></button>
+      </div>
+      <div class="offcanvas-body p-0">
+        <ul class="nav flex-column">
+          <li class="nav-item"><a class="nav-link px-4 py-3 d-flex align-items-center gap-2" href="#dashboard" data-view="dashboard" data-bs-dismiss="offcanvas"><i class="bi bi-house-door"></i>මුල් පිටුව</a></li>
+          <li class="nav-item"><a class="nav-link px-4 py-3 d-flex align-items-center gap-2" href="#syllabus" data-view="syllabus" data-bs-dismiss="offcanvas"><i class="bi bi-journal-bookmark"></i>විෂය නිර්දේශය</a></li>
+          <li class="nav-item"><a class="nav-link px-4 py-3 d-flex align-items-center gap-2" href="#planner" data-view="planner" data-bs-dismiss="offcanvas"><i class="bi bi-calendar-check"></i>අධ්‍යයන සැලසුම</a></li>
+          <li class="nav-item"><a class="nav-link px-4 py-3 d-flex align-items-center gap-2" href="#progress" data-view="progress" data-bs-dismiss="offcanvas"><i class="bi bi-bar-chart-line"></i>ප්‍රගතිය</a></li>
+          <li class="nav-item"><a class="nav-link px-4 py-3 d-flex align-items-center gap-2" href="#revision" data-view="revision" data-bs-dismiss="offcanvas"><i class="bi bi-arrow-repeat"></i>පුනරාවලෝකනය</a></li>
+          <li class="nav-item"><a class="nav-link px-4 py-3 d-flex align-items-center gap-2" href="#past-papers" data-view="past-papers" data-bs-dismiss="offcanvas"><i class="bi bi-file-earmark-text"></i>පසුගිය ප්‍රශ්න පත්‍ර</a></li>
+          <li class="nav-item"><a class="nav-link px-4 py-3 d-flex align-items-center gap-2" href="#analytics" data-view="analytics" data-bs-dismiss="offcanvas"><i class="bi bi-graph-up"></i>විශ්ලේෂණ</a></li>
+          <li class="nav-item"><a class="nav-link px-4 py-3 d-flex align-items-center gap-2" href="#settings" data-view="settings" data-bs-dismiss="offcanvas"><i class="bi bi-gear"></i>සැකසුම්</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav fixed-bottom bg-body border-top d-lg-none" aria-label="ජංගම සංචාලනය">
+      <div class="d-flex justify-content-around py-1">
+        <a href="#dashboard" class="bottom-nav-link" data-view="dashboard" aria-label="මුල් පිටුව"><i class="bi bi-house-door"></i>මුල්</a>
+        <a href="#syllabus" class="bottom-nav-link" data-view="syllabus" aria-label="විෂය නිර්දේශය"><i class="bi bi-journal-bookmark"></i>විෂය</a>
+        <a href="#planner" class="bottom-nav-link" data-view="planner" aria-label="අධ්‍යයන සැලසුම"><i class="bi bi-calendar-check"></i>සැලසුම</a>
+        <a href="#progress" class="bottom-nav-link" data-view="progress" aria-label="ප්‍රගතිය"><i class="bi bi-bar-chart-line"></i>ප්‍රගතිය</a>
+        <a href="#revision" class="bottom-nav-link" data-view="revision" aria-label="පුනරාවලෝකනය"><i class="bi bi-arrow-repeat"></i>පුනරා.</a>
+        <a href="#past-papers" class="bottom-nav-link" data-view="past-papers" aria-label="පසුගිය ප්‍රශ්න පත්‍ර"><i class="bi bi-file-earmark-text"></i>ප්‍රශ්න</a>
+        <a href="#settings" class="bottom-nav-link" data-view="settings" aria-label="සැකසුම්"><i class="bi bi-gear"></i>සැකසුම්</a>
+      </div>
+    </nav>
+
+    <!-- Floating Progress Button -->
+    <button id="floating-progress-btn" aria-label="සමස්ත ප්‍රගතිය බලන්න">
+      <span id="floating-progress-value">0%</span>
+    </button>
+
+  </div>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

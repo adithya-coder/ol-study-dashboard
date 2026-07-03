@@ -1,0 +1,23 @@
+{
+  "name": "O/L 2026 Smart Study Dashboard",
+  "short_name": "OL Study",
+  "description": "Offline-capable study dashboard for Sri Lankan O/L 2026 exam preparation (Sinhala medium)",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "theme_color": "#1E88E5",
+  "background_color": "#F5F5F5",
+  "lang": "si",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

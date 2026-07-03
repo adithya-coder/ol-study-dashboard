@@ -1,0 +1,8 @@
+[     208ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/assets/fonts/NotoSansSinhala-Regular.woff2:0
+[     209ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/assets/fonts/NotoSansSinhala-Bold.woff2:0
+[     209ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/assets/fonts/NotoSansSinhala-Medium.woff2:0
+[     393ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:3000/:0
+[     398ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/assets/icons/icon-192.png:0
+[     456ms] [LOG] [SW] Service Worker registered successfully: http://localhost:3000/ @ http://localhost:3000/js/app.js:348
+[     462ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/assets/icons/icon-192.png:0
+[     462ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:3000/assets/icons/icon-192.png (Download error or resource isn't a valid image) @ http://localhost:3000/:0

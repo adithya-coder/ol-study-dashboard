@@ -1,0 +1,24 @@
+{
+  "name": "ol-smart-study-dashboard",
+  "version": "1.0.0",
+  "description": "Offline-capable PWA study dashboard for Sri Lankan O/L 2026 exam preparation",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:property": "vitest run tests/property",
+    "test:integration": "vitest run tests/integration"
+  },
+  "devDependencies": {
+    "fast-check": "^4.1.1",
+    "vitest": "^3.1.4"
+  },
+  "private": true,
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}

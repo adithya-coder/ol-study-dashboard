@@ -1,0 +1,39 @@
+/* ==========================================================================
+   Sinhala Web Font - @font-face declarations
+   Requirement 11.4: All UI text renders in Sinhala
+   
+   Font: Noto Sans Sinhala (Google Fonts)
+   License: SIL Open Font License 1.1
+   Download: https://fonts.google.com/noto/specimen/Noto+Sans+Sinhala
+   
+   Place the .woff2 file in assets/fonts/ and these rules will load it.
+   The font-family stack in style.css (--font-family) already references
+   'Noto Sans Sinhala' as the primary font.
+   ========================================================================== */
+
+/* Regular weight (400) */
+@font-face {
+  font-family: 'Noto Sans Sinhala';
+  src: url('../assets/fonts/NotoSansSinhala-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Medium weight (500) - used for buttons and labels */
+@font-face {
+  font-family: 'Noto Sans Sinhala';
+  src: url('../assets/fonts/NotoSansSinhala-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bold weight (700) - used for headings and stat values */
+@font-face {
+  font-family: 'Noto Sans Sinhala';
+  src: url('../assets/fonts/NotoSansSinhala-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
