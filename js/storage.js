@@ -10,6 +10,7 @@ const API_BASE = '/api/state';
 let cachedState = null;
 let saveTimer = null;
 const SAVE_DEBOUNCE_MS = 800;
+let savesEnabled = false; // Disabled during initialization to prevent data corruption
 
 function getUserId() {
   return sessionStorage.getItem('ol_user_id') || localStorage.getItem('ol_user_id') || 'default';
@@ -43,6 +44,7 @@ function saveNow() {
 
 /** Schedule a full-state save (debounced to batch rapid updates) */
 function scheduleSave() {
+  if (!savesEnabled) return; // Don't save during initialization
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     if (cachedState) {
@@ -67,6 +69,11 @@ if (typeof window !== 'undefined') {
 
 const StorageEngine = {
   isAvailable() { return true; },
+
+  /** Call this after app initialization is complete to enable saves */
+  enableSaves() {
+    savesEnabled = true;
+  },
 
   async loadAllAsync() {
     try {

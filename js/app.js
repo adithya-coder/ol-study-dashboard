@@ -632,6 +632,9 @@ async function initialize() {
       UIRenderer.navigateToView(hash);
     }
 
+    // Enable saves AFTER full initialization — prevents init-time writes from corrupting data
+    StorageEngine.enableSaves();
+
   } catch (error) {
     // Req 21.4: Halt on error, display error with retry that restarts from beginning
     console.error('[App] Initialization error:', error);
