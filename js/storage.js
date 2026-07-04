@@ -25,7 +25,9 @@ function getHeaders() {
 
 /** Perform immediate save of any pending changes */
 function saveNow() {
-  if (!cachedState || saveTimer === null) return;
+  // Only flush if saves are enabled AND there's a pending timer
+  // This prevents init-time state from being written on page close
+  if (!savesEnabled || saveTimer === null) return;
   clearTimeout(saveTimer);
   saveTimer = null;
   const body = JSON.stringify(cachedState);
