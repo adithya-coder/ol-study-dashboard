@@ -1,0 +1,25 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - status [ref=f1e4]:
+      - generic [ref=f1e5]: පූරණය වෙමින්...
+    - paragraph [ref=f1e6]: යෙදුම සූදානම් වෙමින් පවතී...
+  - text:  
+  - text:                                           
+  - generic [ref=f1e9]:
+    - generic [ref=f1e10]:
+      - generic [ref=f1e11]: 
+      - heading "O/L 2026 අධ්‍යයන පුවරුව" [level=4] [ref=f1e12]
+      - paragraph [ref=f1e13]: ඔබගේ ගිණුමට ඇතුල් වන්න
+    - list [ref=f1e14]:
+      - listitem [ref=f1e15]:
+        - button "ඇතුල් වන්න" [ref=f1e16] [cursor=pointer]
+      - listitem [ref=f1e17]:
+        - button "ලියාපදිංචි" [ref=f1e18] [cursor=pointer]
+    - generic [ref=f1e19]:
+      - generic [ref=f1e20]:
+        - generic [ref=f1e21]: පරිශීලක නාමය
+        - textbox "username" [ref=f1e22]
+      - generic [ref=f1e23]:
+        - generic [ref=f1e24]: මුරපදය
+        - textbox "password" [ref=f1e25]
+      - button "ඇතුල් වන්න" [ref=f1e26] [cursor=pointer]

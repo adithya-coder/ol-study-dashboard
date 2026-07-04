@@ -1,0 +1,5 @@
+[     843ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:3001/:0
+[    1230ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:3001/:0
+[    1255ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:3001/assets/icons/icon-192.png (Resource size is not correct - typo in the Manifest?) @ http://localhost:3001/:0
+[   10451ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3001/api/auth?action=login:0
+[   10452ms] Unexpected token '<', "<!DOCTYPE "... is not valid JSON

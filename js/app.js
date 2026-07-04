@@ -839,14 +839,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Add logout button to settings
-  const logoutArea = document.getElementById('settings-data');
+  const logoutArea = document.getElementById('settings-logout-area');
   if (logoutArea) {
     const logoutBtn = document.createElement('button');
-    logoutBtn.className = 'btn btn-outline-danger ms-2';
+    logoutBtn.className = 'btn btn-outline-danger';
+    logoutBtn.id = 'settings-logout-btn';
     logoutBtn.innerHTML = '<i class="bi bi-box-arrow-right me-1"></i>ඉවත් වන්න';
     logoutBtn.addEventListener('click', () => {
-      Auth.clearSession();
-      location.reload();
+      if (confirm('ඔබ ඉවත් වීමට දැඩි ද?')) {
+        Auth.clearSession();
+        location.reload();
+      }
     });
     logoutArea.appendChild(logoutBtn);
   }
