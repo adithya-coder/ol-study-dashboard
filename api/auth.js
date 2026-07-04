@@ -60,25 +60,20 @@ export default async function handler(req, res) {
     });
   }
 
-  // Simple but deterministic hash
-  async function hashPassword(pass) {
-    const str = pass + 'ol2026salt_' + safeUsername;
-    let h1 = 0x9e3779b9, h2 = 0x6c62272e;
+  // Pure string-based hash — completely deterministic across all environments
+  function hashPassword(pass) {
+    const str = safeUsername + ':' + pass + ':ol2026';
+    let hash = 5381;
     for (let i = 0; i < str.length; i++) {
-      const ch = str.charCodeAt(i);
-      h1 = Math.imul(h1 ^ ch, 0x9e3779b9);
-      h2 = Math.imul(h2 ^ ch, 0x6c62272e);
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      hash = hash & hash; // Convert to 32-bit int
     }
-    h1 = Math.imul(h1 ^ (h1 >>> 16), 0x85ebca6b);
-    h1 = Math.imul(h1 ^ (h1 >>> 13), 0xc2b2ae35);
-    h2 = Math.imul(h2 ^ (h2 >>> 16), 0x85ebca6b);
-    h2 = Math.imul(h2 ^ (h2 >>> 13), 0xc2b2ae35);
-    return ((h1 ^ h2) >>> 0).toString(36) + (Math.abs(h1) >>> 0).toString(36);
+    return (hash >>> 0).toString(16).padStart(8, '0');
   }
 
   try {
     const registry = await loadRegistry();
-    const hashed = await hashPassword(password);
+    const hashed = hashPassword(password);
 
     if (action === 'register') {
       if (registry[safeUsername]) {
