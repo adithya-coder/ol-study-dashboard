@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 import { get, put } from '@vercel/blob';
 
-const HASH_VERSION = 'v1';
 const REGISTRY_BLOB = 'system/users.json';
+const HASH_VERSION = 'v1';
 
 // =====================
-// HASH
+// HASH FUNCTION
 // =====================
 function hashPassword(username, password, version = HASH_VERSION) {
   const cleanUser = username.trim().toLowerCase();
@@ -18,44 +18,41 @@ function hashPassword(username, password, version = HASH_VERSION) {
 }
 
 // =====================
-// LOAD REGISTRY (WITH LOGS)
+// LOAD REGISTRY (FIXED FOR VERCEL BLOB)
 // =====================
 async function loadRegistry() {
   try {
-    console.log('📦 [LOAD] Fetching blob:', REGISTRY_BLOB);
+    console.log('📦 Loading blob...');
 
     const blob = await get(REGISTRY_BLOB);
 
     if (!blob) {
-      console.log('⚠️ [LOAD] Blob is NULL');
+      console.log('⚠️ Blob not found');
       return {};
     }
 
     const text = await blob.text();
 
-    console.log('📄 [LOAD] Raw blob text:', text);
+    console.log('📄 Raw blob:', text);
 
-    if (!text) {
-      console.log('⚠️ [LOAD] Blob is EMPTY');
-      return {};
-    }
+    if (!text) return {};
 
-    const parsed = JSON.parse(text);
+    const data = JSON.parse(text);
 
-    console.log('✅ [LOAD] Parsed registry keys:', Object.keys(parsed));
+    console.log('✅ Users loaded:', Object.keys(data));
 
-    return parsed;
+    return data;
   } catch (err) {
-    console.log('❌ [LOAD ERROR]', err.message);
+    console.log('❌ LOAD ERROR:', err.message);
     return {};
   }
 }
 
 // =====================
-// SAVE REGISTRY (WITH LOGS)
+// SAVE REGISTRY
 // =====================
 async function saveRegistry(data) {
-  console.log('💾 [SAVE] Saving users:', Object.keys(data));
+  console.log('💾 Saving users:', Object.keys(data));
 
   await put(REGISTRY_BLOB, JSON.stringify(data, null, 2), {
     access: 'private',
@@ -63,19 +60,19 @@ async function saveRegistry(data) {
     allowOverwrite: true
   });
 
-  console.log('✅ [SAVE] Saved successfully');
+  console.log('✅ Saved successfully');
 }
 
 // =====================
-// HANDLER
+// MAIN HANDLER
 // =====================
 export default async function handler(req, res) {
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
@@ -83,11 +80,13 @@ export default async function handler(req, res) {
   const { action } = req.query;
   const { username, password } = req.body || {};
 
-  console.log('🚀 [REQUEST]', { action, username });
+  console.log('🚀 REQUEST:', { action, username });
 
   if (!username || !password) {
-    console.log('❌ Missing credentials');
-    return res.status(400).json({ error: 'Username and password required' });
+    return res.status(400).json({
+      success: false,
+      error: 'Username and password required'
+    });
   }
 
   const safeUsername = username
@@ -98,28 +97,26 @@ export default async function handler(req, res) {
 
   const safePassword = password.trim();
 
-  console.log('🔐 [NORMALIZED]', {
-    raw: username,
-    safeUsername,
-    passwordLength: safePassword.length
-  });
+  console.log('🔐 NORMALIZED:', { safeUsername });
 
   try {
     const registry = await loadRegistry();
 
     const hashed = hashPassword(safeUsername, safePassword);
 
-    console.log('🔑 [HASH]', hashed);
+    console.log('🔑 HASH:', hashed);
 
     // =====================
     // REGISTER
     // =====================
     if (action === 'register') {
-      console.log('🟢 REGISTER FLOW');
+      console.log('🟢 REGISTER');
 
       if (registry[safeUsername]) {
-        console.log('⚠️ User already exists');
-        return res.status(409).json({ error: 'Username already exists' });
+        return res.status(409).json({
+          success: false,
+          error: 'Username already exists'
+        });
       }
 
       registry[safeUsername] = {
@@ -140,10 +137,10 @@ export default async function handler(req, res) {
     // LOGIN
     // =====================
     if (action === 'login') {
-      console.log('🔵 LOGIN FLOW');
+      console.log('🔵 LOGIN');
 
-      console.log('🔎 Looking for user:', safeUsername);
-      console.log('📚 Available users:', Object.keys(registry));
+      console.log('🔎 Searching user:', safeUsername);
+      console.log('📚 Users:', Object.keys(registry));
 
       const user = registry[safeUsername];
 
@@ -161,11 +158,11 @@ export default async function handler(req, res) {
         user.version || HASH_VERSION
       );
 
-      console.log('🔍 Stored hash:', user.hash);
-      console.log('🔍 Input hash:', hashedInput);
+      console.log('🔍 Stored:', user.hash);
+      console.log('🔍 Input:', hashedInput);
 
       if (user.hash !== hashedInput) {
-        console.log('❌ PASSWORD MISMATCH');
+        console.log('❌ WRONG PASSWORD');
         return res.status(401).json({
           success: false,
           error: 'Invalid password'
@@ -180,10 +177,17 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(400).json({ error: 'Invalid action' });
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid action'
+    });
 
   } catch (err) {
-    console.log('🔥 FATAL ERROR:', err);
-    return res.status(500).json({ error: err.message });
+    console.log('🔥 FATAL:', err.message);
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
   }
 }
