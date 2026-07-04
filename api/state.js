@@ -33,12 +33,21 @@ export default async function handler(req, res) {
     try {
       const { blobs } = await blob.list({ prefix: BLOB_NAME, token });
       if (blobs.length > 0) {
-        const response = await fetch(blobs[0].downloadUrl);
+        const signedUrl = await blob.getDownloadUrl(blobs[0].url, { token });
+        const response = await fetch(signedUrl, { cache: 'no-store' });
         if (response.ok) {
-          const data = await response.json();
-          if (data && typeof data === 'object' && !Array.isArray(data)) {
-            return data;
+          const text = await response.text();
+          if (text) {
+            const data = JSON.parse(text);
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+              return data;
+            }
           }
+        }
+      }
+    } catch (e) { console.error('[readState]', e.message); }
+    return {};
+  }
         }
       }
     } catch (e) { console.error('[readState]', e.message); }

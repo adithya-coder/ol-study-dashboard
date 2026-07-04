@@ -37,17 +37,19 @@ export default async function handler(req, res) {
 
   const USERS_BLOB = 'users/registry.json';
 
-  // Load user registry — always fetch fresh (no CDN cache)
+  // Load user registry — use getDownloadUrl for private blob
   async function loadRegistry() {
     try {
       const { blobs } = await blob.list({ prefix: USERS_BLOB, token });
       if (blobs.length > 0) {
-        // Add cache-busting to force fresh fetch from blob storage
-        const url = blobs[0].downloadUrl + '?t=' + Date.now();
-        const response = await fetch(url, { cache: 'no-store' });
+        const signedUrl = await blob.getDownloadUrl(blobs[0].url, { token });
+        const response = await fetch(signedUrl, { cache: 'no-store' });
         if (response.ok) {
-          const data = await response.json();
-          if (data && typeof data === 'object') return data;
+          const text = await response.text();
+          if (text) {
+            const data = JSON.parse(text);
+            if (data && typeof data === 'object') return data;
+          }
         }
       }
     } catch (e) {
