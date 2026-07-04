@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const token = "vercel_blob_rw_1OTZhODHWsNQ3eCW_tGJracqzMcA1sbkVtDNQTDjefj1CZf";
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) return res.status(500).json({ success: false, error: 'Storage not configured' });
 
   let blob;
@@ -32,14 +32,12 @@ export default async function handler(req, res) {
   const REGISTRY_BLOB = 'system/users.json';
 
   // Hash using pure JS — deterministic across all Node.js versions
-  function hashPassword(pass) {
-    const str = safeUsername + ':' + pass + ':ol2026';
-    let hash = 5381;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) + hash) + str.charCodeAt(i);
-      hash = hash & hash;
-    }
-    return (hash >>> 0).toString(16).padStart(8, '0');
+  
+  function hashPassword(username, password) {
+    return crypto
+      .createHash('sha256')
+      .update(`${username}:${password}`)
+      .digest('hex');
   }
 
   async function loadRegistry() {
@@ -86,7 +84,7 @@ export default async function handler(req, res) {
 
   try {
     const registry = await loadRegistry();
-    const hashed = hashPassword(password);
+    const hashed = hashPassword(username,password);
 
     console.log('[auth]', action, safeUsername, 'computed hash:', hashed, 'registry users:', Object.keys(registry));
 
