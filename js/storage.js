@@ -9,7 +9,7 @@ import EventBus from './event-bus.js';
 const API_BASE = '/api/state';
 let cachedState = null;
 let saveTimer = null;
-const SAVE_DEBOUNCE_MS = 500;
+const SAVE_DEBOUNCE_MS = 800;
 
 function getUserId() {
   return sessionStorage.getItem('ol_user_id') || localStorage.getItem('ol_user_id') || 'default';
@@ -20,6 +20,24 @@ function getHeaders() {
     'Content-Type': 'application/json',
     'X-User-Id': getUserId()
   };
+}
+
+/** Perform immediate save (used for critical saves like beforeunload) */
+function saveNow() {
+  if (!cachedState) return;
+  // Use sendBeacon for reliability on page unload
+  const body = JSON.stringify(cachedState);
+  if (navigator.sendBeacon) {
+    const blob = new Blob([body], { type: 'application/json' });
+    navigator.sendBeacon(`${API_BASE}?userId=${getUserId()}`, blob);
+  } else {
+    fetch(API_BASE, {
+      method: 'POST',
+      headers: getHeaders(),
+      body,
+      keepalive: true
+    }).catch(() => {});
+  }
 }
 
 /** Schedule a full-state save (debounced to batch rapid updates) */
@@ -36,6 +54,14 @@ function scheduleSave() {
       });
     }
   }, SAVE_DEBOUNCE_MS);
+}
+
+// Save immediately before page unloads
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', saveNow);
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveNow();
+  });
 }
 
 const StorageEngine = {

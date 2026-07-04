@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  const userId = req.headers['x-user-id'] || 'default';
+  const userId = req.headers['x-user-id'] || req.query.userId || 'default';
 
   // Sanitize userId (only alphanumeric + dash + underscore)
   const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32) || 'default';
