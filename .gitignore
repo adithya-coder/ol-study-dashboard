@@ -10,3 +10,4 @@ docs/
 tests/
 *.bat
 vitest.config.js
+.playwright-mcp

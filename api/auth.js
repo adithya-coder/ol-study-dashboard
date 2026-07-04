@@ -37,15 +37,22 @@ export default async function handler(req, res) {
 
   const USERS_BLOB = 'users/registry.json';
 
-  // Load user registry
+  // Load user registry — always fetch fresh (no CDN cache)
   async function loadRegistry() {
     try {
       const { blobs } = await blob.list({ prefix: USERS_BLOB, token });
       if (blobs.length > 0) {
-        const response = await fetch(blobs[0].downloadUrl);
-        if (response.ok) return await response.json();
+        // Add cache-busting to force fresh fetch from blob storage
+        const url = blobs[0].downloadUrl + '?t=' + Date.now();
+        const response = await fetch(url, { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data && typeof data === 'object') return data;
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('[loadRegistry]', e.message);
+    }
     return {};
   }
 
@@ -86,7 +93,10 @@ export default async function handler(req, res) {
 
     if (action === 'login') {
       const user = registry[safeUsername];
-      if (!user || user.hash !== hashed) {
+      const computedHash = hashed;
+      const storedHash = user ? user.hash : null;
+      if (!user || storedHash !== computedHash) {
+        console.log('[auth] Login fail:', { safeUsername, computedHash, storedHash, usersInRegistry: Object.keys(registry) });
         return res.status(401).json({ success: false, error: 'Invalid username or password' });
       }
       return res.status(200).json({ success: true, userId: safeUsername, username: safeUsername });
