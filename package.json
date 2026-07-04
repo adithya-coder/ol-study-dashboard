@@ -4,15 +4,14 @@
   "description": "Offline-capable PWA study dashboard for Sri Lankan O/L 2026 exam preparation",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:unit": "vitest run tests/unit",
-    "test:property": "vitest run tests/property",
-    "test:integration": "vitest run tests/integration"
+    "server": "nodemon server.js",
+    "client": "serve . -p 3000",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "devDependencies": {
+    "concurrently": "^10.0.3",
     "fast-check": "^4.1.1",
+    "nodemon": "^3.1.14",
     "vitest": "^3.1.4"
   },
   "private": true,

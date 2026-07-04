@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const token = "vercel_blob_rw_1OTZhODHWsNQ3eCW_tGJracqzMcA1sbkVtDNQTDjefj1CZf";
   if (!token) return res.status(500).json({ success: false, error: 'Storage not configured' });
 
   let blob;
@@ -44,16 +44,29 @@ export default async function handler(req, res) {
 
   async function loadRegistry() {
     try {
+      // Check if blob exists first
       const { blobs } = await blob.list({ prefix: REGISTRY_BLOB, token });
       console.log('[loadRegistry] blobs found:', blobs.length, 'for prefix:', REGISTRY_BLOB);
-      if (blobs.length > 0) {
-        const signedUrl = await blob.presignUrl(blobs[0].url, { token, operation: 'get', expiresIn: 60 });
-        const response = await fetch(signedUrl);
-        console.log('[loadRegistry] fetch status:', response.status);
-        if (response.ok) {
-          const text = await response.text();
-          if (text) return JSON.parse(text);
-        }
+      if (blobs.length === 0) return {};
+
+      // Issue a signed token for reading, then presign the URL
+      const signedToken = await blob.issueSignedToken({
+        pathname: REGISTRY_BLOB,
+        operations: ['get'],
+        validUntil: Date.now() + 60000,
+        token
+      });
+      const { presignedUrl } = await blob.presignUrl(signedToken, {
+        pathname: REGISTRY_BLOB,
+        operation: 'get'
+      });
+
+      console.log('[loadRegistry] fetching presigned URL');
+      const response = await fetch(presignedUrl);
+      console.log('[loadRegistry] fetch status:', response.status);
+      if (response.ok) {
+        const text = await response.text();
+        if (text) return JSON.parse(text);
       }
     } catch (e) {
       console.error('[loadRegistry error]', e.message);

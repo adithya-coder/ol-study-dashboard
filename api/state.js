@@ -30,16 +30,26 @@ export default async function handler(req, res) {
   async function readState() {
     try {
       const { blobs } = await blob.list({ prefix: BLOB_NAME, token });
-      if (blobs.length > 0) {
-        const signedUrl = await blob.presignUrl(blobs[0].url, { token, operation: 'get', expiresIn: 60 });
-        const response = await fetch(signedUrl);
-        if (response.ok) {
-          const text = await response.text();
-          if (text) {
-            const data = JSON.parse(text);
-            if (data && typeof data === 'object' && !Array.isArray(data)) {
-              return data;
-            }
+      if (blobs.length === 0) return {};
+
+      const signedToken = await blob.issueSignedToken({
+        pathname: BLOB_NAME,
+        operations: ['get'],
+        validUntil: Date.now() + 60000,
+        token
+      });
+      const { presignedUrl } = await blob.presignUrl(signedToken, {
+        pathname: BLOB_NAME,
+        operation: 'get'
+      });
+
+      const response = await fetch(presignedUrl);
+      if (response.ok) {
+        const text = await response.text();
+        if (text) {
+          const data = JSON.parse(text);
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            return data;
           }
         }
       }
