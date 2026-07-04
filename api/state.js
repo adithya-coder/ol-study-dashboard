@@ -72,6 +72,7 @@ export default async function handler(req, res) {
 
         // Upload new state
         await blob.put(BLOB_NAME, JSON.stringify(state), {
+          access: 'private',
           contentType: 'application/json',
           addRandomSuffix: false
         });
