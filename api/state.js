@@ -49,7 +49,9 @@ async function readState() {
   method: 'GET',
   mode: 'cors', // 👈 Explicitly request CORS access
   headers: {
-    'Accept': 'application/json'
+    'Accept': 'application/json',
+    'Access-Control-Allow-Origin':'*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   }
 });
       
