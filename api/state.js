@@ -28,24 +28,39 @@ export default async function handler(req, res) {
 
   const BLOB_NAME = 'app-state.json';
 
-  // Helper: read current state from blob
-  async function readState() {
-    try {
-      const { blobs } = await blob.list({ prefix: BLOB_NAME, token });
-      if (blobs.length > 0) {
-        const response = await fetch(blobs[0].downloadUrl);
-        if (response.ok) {
-          const data = await response.json();
-          if (data && typeof data === 'object' && !Array.isArray(data)) {
-            return data;
-          }
+ 
+// Helper: read current state from blob
+async function readState() {
+  try {
+    // 1. Find all files starting with 'app-state.json'
+    const { blobs } = await blob.list({ prefix: BLOB_NAME, token });
+    
+    if (blobs.length > 0) {
+      // 2. SORT BY NEWEST FIRST (Bypasses oldest file trap)
+      const sortedBlobs = blobs.sort(
+        (a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)
+      );
+      
+      const latestBlob = sortedBlobs[0]; // This is your actual latest state!
+
+      // 3. BYPASS CDN CACHE (Forces Vercel to download fresh data)
+      const freshUrl = `${latestBlob.downloadUrl}?t=${Date.now()}`;
+      const response = await fetch(freshUrl);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // 4. Validate and deliver the object
+        if (data && typeof data === 'object') {
+          return data;
         }
       }
-    } catch (e) {
-      console.error('[readState]', e.message);
     }
-    return {};
+  } catch (e) {
+    console.error('[readState] Error:', e.message);
   }
+  return {}; // Safely fall back to an empty object if empty or failed
+}
 
   // Helper: write state to blob (overwrite, no delete needed)
   async function writeState(state) {
