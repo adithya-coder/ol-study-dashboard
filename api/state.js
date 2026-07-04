@@ -45,7 +45,13 @@ async function readState() {
 
       // 3. BYPASS CDN CACHE (Forces Vercel to download fresh data)
       const freshUrl = `${latestBlob.downloadUrl}?t=${Date.now()}`;
-      const response = await fetch(freshUrl);
+      const response = await fetch(freshUrl, {
+  method: 'GET',
+  mode: 'cors', // 👈 Explicitly request CORS access
+  headers: {
+    'Accept': 'application/json'
+  }
+});
       
       if (response.ok) {
         const data = await response.json();
