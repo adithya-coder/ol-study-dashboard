@@ -1,6 +1,5 @@
 // Vercel Serverless Function: /api/auth
-// POST /api/auth?action=register  — create account
-// POST /api/auth?action=login     — login and return userId
+// Stores user registry in a single blob, reads it server-side with full token
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,9 +10,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) {
-    return res.status(500).json({ success: false, error: 'Storage not configured' });
-  }
+  if (!token) return res.status(500).json({ success: false, error: 'Storage not configured' });
 
   let blob;
   try {
@@ -29,27 +26,32 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'Username and password required' });
   }
 
-  // Sanitize username
   const safeUsername = username.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32).toLowerCase();
-  if (!safeUsername) {
-    return res.status(400).json({ success: false, error: 'Invalid username' });
+  if (!safeUsername) return res.status(400).json({ success: false, error: 'Invalid username' });
+
+  const REGISTRY_BLOB = 'system/users.json';
+
+  // Hash using pure JS — deterministic across all Node.js versions
+  function hashPassword(pass) {
+    const str = safeUsername + ':' + pass + ':ol2026';
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      hash = hash & hash;
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
   }
 
-  const USERS_BLOB = 'users/registry.json';
-
-  // Load user registry — use getDownloadUrl for private blob
   async function loadRegistry() {
     try {
-      const { blobs } = await blob.list({ prefix: USERS_BLOB, token });
+      const { blobs } = await blob.list({ prefix: REGISTRY_BLOB, token });
       if (blobs.length > 0) {
-        const signedUrl = await blob.getDownloadUrl(blobs[0].url, { token });
-        const response = await fetch(signedUrl, { cache: 'no-store' });
+        // Use presigned URL which works server-side
+        const signedUrl = await blob.presignUrl(blobs[0].url, { token, operation: 'get', expiresIn: 60 });
+        const response = await fetch(signedUrl);
         if (response.ok) {
           const text = await response.text();
-          if (text) {
-            const data = JSON.parse(text);
-            if (data && typeof data === 'object') return data;
-          }
+          if (text) return JSON.parse(text);
         }
       }
     } catch (e) {
@@ -58,9 +60,8 @@ export default async function handler(req, res) {
     return {};
   }
 
-  // Save user registry
   async function saveRegistry(registry) {
-    await blob.put(USERS_BLOB, JSON.stringify(registry), {
+    await blob.put(REGISTRY_BLOB, JSON.stringify(registry), {
       access: 'private',
       contentType: 'application/json',
       addRandomSuffix: false,
@@ -69,20 +70,11 @@ export default async function handler(req, res) {
     });
   }
 
-  // Pure string-based hash — completely deterministic across all environments
-  function hashPassword(pass) {
-    const str = safeUsername + ':' + pass + ':ol2026';
-    let hash = 5381;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) + hash) + str.charCodeAt(i);
-      hash = hash & hash; // Convert to 32-bit int
-    }
-    return (hash >>> 0).toString(16).padStart(8, '0');
-  }
-
   try {
     const registry = await loadRegistry();
     const hashed = hashPassword(password);
+
+    console.log('[auth]', action, safeUsername, 'computed hash:', hashed, 'registry users:', Object.keys(registry));
 
     if (action === 'register') {
       if (registry[safeUsername]) {
@@ -95,10 +87,8 @@ export default async function handler(req, res) {
 
     if (action === 'login') {
       const user = registry[safeUsername];
-      const computedHash = hashed;
-      const storedHash = user ? user.hash : null;
-      if (!user || storedHash !== computedHash) {
-        console.log('[auth] Login fail:', { safeUsername, computedHash, storedHash, usersInRegistry: Object.keys(registry) });
+      if (!user || user.hash !== hashed) {
+        console.log('[auth] login fail - stored hash:', user?.hash, 'computed:', hashed);
         return res.status(401).json({ success: false, error: 'Invalid username or password' });
       }
       return res.status(200).json({ success: true, userId: safeUsername, username: safeUsername });
@@ -106,6 +96,7 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ success: false, error: 'Invalid action' });
   } catch (err) {
+    console.error('[auth error]', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 }
