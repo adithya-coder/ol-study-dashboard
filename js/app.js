@@ -24,6 +24,7 @@ import UIRenderer from './ui.js';
 import EventBus from './event-bus.js';
 import { initSettingsUI } from './settings-ui.js';
 import AdminPanel from './admin.js';
+import Auth from './auth.js';
 
 // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -759,7 +760,31 @@ function wireSettingsForm() {
 
 // ─── Entry Point ────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Require login before initializing the app
+  if (!Auth.isLoggedIn()) {
+    await Auth.showLoginModal();
+  }
+
+  // Show username in navbar
+  const brand = document.querySelector('.navbar-brand');
+  if (brand) {
+    brand.innerHTML = `<i class="bi bi-book me-1"></i>O/L 2026 — ${Auth.getUsername()}`;
+  }
+
+  // Add logout button to settings
+  const logoutArea = document.getElementById('settings-data');
+  if (logoutArea) {
+    const logoutBtn = document.createElement('button');
+    logoutBtn.className = 'btn btn-outline-danger ms-2';
+    logoutBtn.innerHTML = '<i class="bi bi-box-arrow-right me-1"></i>ඉවත් වන්න';
+    logoutBtn.addEventListener('click', () => {
+      Auth.clearSession();
+      location.reload();
+    });
+    logoutArea.appendChild(logoutBtn);
+  }
+
   initialize();
   registerServiceWorker();
 });
