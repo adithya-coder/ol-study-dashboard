@@ -13,8 +13,10 @@ export default async function handler(req, res) {
   if (!token) return res.status(500).json({ success: false, error: 'Storage not configured' });
 
   let blob;
+  let crypto;
   try {
     blob = await import('@vercel/blob');
+    crypto =require('crypto');
   } catch (e) {
     return res.status(500).json({ success: false, error: 'blob module unavailable' });
   }
