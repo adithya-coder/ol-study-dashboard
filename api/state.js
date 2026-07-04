@@ -69,12 +69,21 @@ export default async function handler(req, res) {
     while (attempts < 3) {
       try {
         const { key } = req.query;
+
+        // ALWAYS load existing state first, then merge — never overwrite entirely
         let state = await readState();
 
         if (key) {
+          // Patch a single module key
           state[key] = req.body;
-        } else {
-          state = req.body && typeof req.body === 'object' ? req.body : state;
+        } else if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+          // Merge partial state — only update keys that are present in the body
+          // This prevents stale/incomplete data from overwriting valid saved data
+          for (const [k, v] of Object.entries(req.body)) {
+            if (v !== null && v !== undefined) {
+              state[k] = v;
+            }
+          }
         }
 
         await writeState(state);

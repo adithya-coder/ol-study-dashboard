@@ -22,14 +22,15 @@ function getHeaders() {
   };
 }
 
-/** Perform immediate save (used for critical saves like beforeunload) */
+/** Perform immediate save of any pending changes */
 function saveNow() {
-  if (!cachedState) return;
-  // Use sendBeacon for reliability on page unload
+  if (!cachedState || saveTimer === null) return;
+  clearTimeout(saveTimer);
+  saveTimer = null;
   const body = JSON.stringify(cachedState);
   if (navigator.sendBeacon) {
-    const blob = new Blob([body], { type: 'application/json' });
-    navigator.sendBeacon(`${API_BASE}?userId=${getUserId()}`, blob);
+    const data = new Blob([body], { type: 'application/json' });
+    navigator.sendBeacon(`${API_BASE}?userId=${getUserId()}`, data);
   } else {
     fetch(API_BASE, {
       method: 'POST',
