@@ -5,25 +5,29 @@
 
 const Auth = {
   isLoggedIn() {
-    return !!sessionStorage.getItem('ol_user_id');
+    return !!(sessionStorage.getItem('ol_user_id') || localStorage.getItem('ol_user_id'));
   },
 
   getUserId() {
-    return sessionStorage.getItem('ol_user_id');
+    return sessionStorage.getItem('ol_user_id') || localStorage.getItem('ol_user_id');
   },
 
   getUsername() {
-    return sessionStorage.getItem('ol_username') || 'Student';
+    return sessionStorage.getItem('ol_username') || localStorage.getItem('ol_username') || 'Student';
   },
 
   setSession(userId, username) {
     sessionStorage.setItem('ol_user_id', userId);
     sessionStorage.setItem('ol_username', username);
+    localStorage.setItem('ol_user_id', userId);
+    localStorage.setItem('ol_username', username);
   },
 
   clearSession() {
     sessionStorage.removeItem('ol_user_id');
     sessionStorage.removeItem('ol_username');
+    localStorage.removeItem('ol_user_id');
+    localStorage.removeItem('ol_username');
   },
 
   async register(username, password) {

@@ -1,16 +1,18 @@
 /**
  * StorageEngine - Per-user JSON persistence via Vercel Blob API.
  * Uses X-User-Id header to scope data per user.
+ * Batches saves with debounce to avoid race conditions.
  */
 
 import EventBus from './event-bus.js';
 
 const API_BASE = '/api/state';
 let cachedState = null;
+let saveTimer = null;
+const SAVE_DEBOUNCE_MS = 500;
 
-// Get current user ID from session storage
 function getUserId() {
-  return sessionStorage.getItem('ol_user_id') || 'default';
+  return sessionStorage.getItem('ol_user_id') || localStorage.getItem('ol_user_id') || 'default';
 }
 
 function getHeaders() {
@@ -18,6 +20,22 @@ function getHeaders() {
     'Content-Type': 'application/json',
     'X-User-Id': getUserId()
   };
+}
+
+/** Schedule a full-state save (debounced to batch rapid updates) */
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    if (cachedState) {
+      fetch(API_BASE, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(cachedState)
+      }).catch(err => {
+        EventBus.emit('storage:error', { operation: 'save', error: err.message });
+      });
+    }
+  }, SAVE_DEBOUNCE_MS);
 }
 
 const StorageEngine = {
@@ -40,11 +58,7 @@ const StorageEngine = {
 
   saveAll(state) {
     cachedState = state;
-    fetch(API_BASE, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(state)
-    }).catch(err => EventBus.emit('storage:error', { operation: 'saveAll', error: err.message }));
+    scheduleSave();
     return true;
   },
 
@@ -52,12 +66,7 @@ const StorageEngine = {
     if (!cachedState) cachedState = {};
     const propName = key.replace('ol_', '');
     cachedState[propName] = data;
-
-    fetch(`${API_BASE}?key=${propName}`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(data)
-    }).catch(err => EventBus.emit('storage:error', { operation: 'saveModule', error: err.message }));
+    scheduleSave();
     return true;
   },
 
@@ -72,7 +81,7 @@ const StorageEngine = {
       const parsed = JSON.parse(json);
       if (!parsed || typeof parsed !== 'object') return { success: false, error: 'Invalid JSON' };
       cachedState = parsed;
-      this.saveAll(parsed);
+      scheduleSave();
       return { success: true };
     } catch (e) { return { success: false, error: e.message }; }
   },
