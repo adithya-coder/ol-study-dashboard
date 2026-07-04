@@ -1,7 +1,7 @@
-// /api/auth (Vercel Serverless Function)
+// /api/auth - FIXED VERSION
 
 import crypto from 'crypto';
-import { put, get } from '@vercel/blob';
+import { get, put } from '@vercel/blob';
 
 export default async function handler(req, res) {
   // CORS
@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
   const { action } = req.query;
@@ -24,20 +24,25 @@ export default async function handler(req, res) {
     });
   }
 
+  // ✅ STRICT normalization (IMPORTANT FIX)
   const safeUsername = username
-    .replace(/[^a-zA-Z0-9_-]/g, '')
-    .slice(0, 32)
-    .toLowerCase();
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, 32);
 
-  if (!safeUsername) {
+  const safePassword = password.trim();
+
+  if (!safeUsername || !safePassword) {
     return res.status(400).json({
       success: false,
-      error: 'Invalid username'
+      error: 'Invalid username or password format'
     });
   }
 
   const REGISTRY_BLOB = 'system/users.json';
 
+  // ✅ FIXED HASH (MUST MATCH BOTH SIDES EXACTLY)
   function hashPassword(user, pass) {
     return crypto
       .createHash('sha256')
@@ -49,9 +54,11 @@ export default async function handler(req, res) {
     try {
       const blob = await get(REGISTRY_BLOB);
       if (!blob) return {};
+
       const text = await blob.text();
       return text ? JSON.parse(text) : {};
-    } catch {
+    } catch (err) {
+      console.log('[loadRegistry error]', err.message);
       return {};
     }
   }
@@ -66,9 +73,16 @@ export default async function handler(req, res) {
 
   try {
     const registry = await loadRegistry();
-    const hashed = hashPassword(safeUsername, password);
 
+    const hashed = hashPassword(safeUsername, safePassword);
+
+    console.log('[AUTH]', action);
+    console.log('User:', safeUsername);
+    console.log('Hash:', hashed);
+
+    // =========================
     // REGISTER
+    // =========================
     if (action === 'register') {
       if (registry[safeUsername]) {
         return res.status(409).json({
@@ -84,25 +98,34 @@ export default async function handler(req, res) {
 
       await saveRegistry(registry);
 
-      return res.status(200).json({
+      return res.json({
         success: true,
         userId: safeUsername,
         username: safeUsername
       });
     }
 
+    // =========================
     // LOGIN
+    // =========================
     if (action === 'login') {
       const user = registry[safeUsername];
 
-      if (!user || user.hash !== hashed) {
+      if (!user) {
         return res.status(401).json({
           success: false,
-          error: 'Invalid username or password'
+          error: 'User not found'
         });
       }
 
-      return res.status(200).json({
+      if (user.hash !== hashed) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid password'
+        });
+      }
+
+      return res.json({
         success: true,
         userId: safeUsername,
         username: safeUsername
@@ -115,6 +138,7 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
+    console.error('[AUTH ERROR]', err);
     return res.status(500).json({
       success: false,
       error: err.message
