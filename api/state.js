@@ -1,5 +1,5 @@
 // Vercel Serverless Function: /api/state
-// Uses Vercel Blob for persistent JSON storage
+// Uses Vercel Blob (private) for persistent JSON storage
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -10,26 +10,68 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  let blob = null;
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    // No blob configured — return null for GET, success for POST (no-op)
+    if (req.method === 'GET') return res.status(200).json(null);
+    if (req.method === 'POST') return res.status(200).json({ success: true, note: 'no storage configured' });
+    return res.status(405).end();
+  }
+
+  let blob;
   try {
     blob = await import('@vercel/blob');
-  } catch (e) {}
+  } catch (e) {
+    if (req.method === 'GET') return res.status(200).json(null);
+    return res.status(500).json({ success: false, error: 'blob module not found' });
+  }
 
   const BLOB_NAME = 'app-state.json';
 
-  if (req.method === 'GET') {
+  // Helper: read current state from blob
+  async function readState() {
     try {
-      if (blob && process.env.BLOB_READ_WRITE_TOKEN) {
-        const { blobs } = await blob.list({ prefix: BLOB_NAME });
-        if (blobs.length > 0) {
-          const response = await fetch(blobs[0].downloadUrl);
+      const { blobs } = await blob.list({ prefix: BLOB_NAME, token });
+      if (blobs.length > 0) {
+        const response = await fetch(blobs[0].downloadUrl);
+        if (response.ok) {
           const data = await response.json();
-          return res.status(200).json(data);
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            return data;
+          }
         }
       }
-      return res.status(200).json(null);
+    } catch (e) {
+      console.error('[readState]', e.message);
+    }
+    return {};
+  }
+
+  // Helper: write state to blob
+  async function writeState(state) {
+    // Delete old blobs
+    try {
+      const { blobs } = await blob.list({ prefix: BLOB_NAME, token });
+      if (blobs.length > 0) {
+        await blob.del(blobs.map(b => b.url), { token });
+      }
+    } catch (e) {}
+
+    // Write new blob
+    await blob.put(BLOB_NAME, JSON.stringify(state), {
+      access: 'private',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      token
+    });
+  }
+
+  if (req.method === 'GET') {
+    try {
+      const state = await readState();
+      return res.status(200).json(Object.keys(state).length > 0 ? state : null);
     } catch (err) {
-      console.error('[API GET]', err.message);
+      console.error('[GET]', err.message);
       return res.status(200).json(null);
     }
   }
@@ -37,50 +79,18 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { key } = req.query;
-      let state = {};
+      let state = await readState();
 
-      // Load existing state
-      if (blob && process.env.BLOB_READ_WRITE_TOKEN) {
-        try {
-          const { blobs } = await blob.list({ prefix: BLOB_NAME });
-          if (blobs.length > 0) {
-            const response = await fetch(blobs[0].url);
-            state = await response.json();
-            if (!state || typeof state !== 'object' || Array.isArray(state)) {
-              state = {};
-            }
-          }
-        } catch (e) {}
-      }
-
-      // Update state
       if (key) {
         state[key] = req.body;
       } else {
         state = req.body;
       }
 
-      // Save to blob
-      if (blob && process.env.BLOB_READ_WRITE_TOKEN) {
-        // Delete old blob first
-        try {
-          const { blobs } = await blob.list({ prefix: BLOB_NAME });
-          if (blobs.length > 0) {
-            await blob.del(blobs.map(b => b.url));
-          }
-        } catch (e) {}
-
-        // Upload new state
-        await blob.put(BLOB_NAME, JSON.stringify(state), {
-          access: 'private',
-          contentType: 'application/json',
-          addRandomSuffix: false
-        });
-      }
-
+      await writeState(state);
       return res.status(200).json({ success: true });
     } catch (err) {
-      console.error('[API POST]', err.message);
+      console.error('[POST]', err.message);
       return res.status(500).json({ success: false, error: err.message });
     }
   }
