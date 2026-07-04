@@ -48,15 +48,31 @@ function saveNow() {
 function scheduleSave() {
   if (!savesEnabled) return; // Don't save during initialization
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+  saveTimer = setTimeout(async () => {
     if (cachedState) {
-      fetch(API_BASE, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(cachedState)
-      }).catch(err => {
+      try {
+        const res = await fetch(API_BASE, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify(cachedState)
+        });
+        
+        if (res.ok) {
+          // FIX: After save succeeds, reload the data from server to sync all modules
+          // This ensures that if other changes were made on the server, we have the latest state
+          const reloadRes = await fetch(API_BASE, { headers: { 'X-User-Id': getUserId() } });
+          if (reloadRes.ok) {
+            const freshData = await reloadRes.json();
+            if (freshData && typeof freshData === 'object') {
+              cachedState = freshData;
+              // Emit event so modules can reload their state from fresh data
+              EventBus.emit('storage:reloaded', { state: freshData });
+            }
+          }
+        }
+      } catch (err) {
         EventBus.emit('storage:error', { operation: 'save', error: err.message });
-      });
+      }
     }
   }, SAVE_DEBOUNCE_MS);
 }

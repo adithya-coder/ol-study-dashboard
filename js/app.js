@@ -532,6 +532,51 @@ function wireEventListeners() {
       : 'ගබඩා දෝෂයක් සිදු විය. කරුණාකර ඔබේ දත්ත නිර්යාත කර උපස්ථයක් තබා ගන්න.';
     UIRenderer.showNotification(message, 'warning');
   });
+
+  // FIX: storage:reloaded → reload all module state from server and refresh UI
+  // This ensures that after a save, all modules are synced with the latest server data
+  EventBus.on('storage:reloaded', (data) => {
+    if (!initialized || !data || !data.state) return;
+
+    const freshState = data.state;
+
+    // Reload each module with fresh data if available
+    if (freshState.syllabus) {
+      SyllabusTracker.initialize(freshState.syllabus);
+    }
+
+    if (freshState.plan && Array.isArray(freshState.plan)) {
+      StudyPlanner.setPlan(freshState.plan);
+      EventBus.emit('plan:recalculated', { plan: freshState.plan });
+    }
+
+    if (freshState.gamification) {
+      GamificationSystem.initialize(freshState.gamification);
+    }
+
+    if (freshState.revision) {
+      RevisionManager.initialize(freshState.revision);
+    }
+
+    if (freshState.pastpapers) {
+      PastPaperTracker.initialize(freshState.pastpapers);
+    }
+
+    if (freshState.settings) {
+      SettingsModule.initialize(freshState.settings);
+    }
+
+    // Trigger comprehensive UI refresh
+    setTimeout(() => {
+      refreshDashboard();
+      UIRenderer.renderSubjectCards(SyllabusTracker.getState(), StudyPlanner.getTodaysPlan());
+      UIRenderer.renderProgress(buildProgressData());
+      UIRenderer.renderDailyPlan(StudyPlanner.getTodaysPlan());
+      renderFullPlan();
+      renderRevisionPage();
+      renderPastPapersPage();
+    }, 50);
+  });
 }
 
 // ─── Initialization Sequence ────────────────────────────────────────────────
