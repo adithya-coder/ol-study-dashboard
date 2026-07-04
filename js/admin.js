@@ -13,6 +13,7 @@ import SyllabusTracker from './syllabus.js';
 import StorageEngine from './storage.js';
 import UIRenderer from './ui.js';
 import StudyPlanner from './planner.js';
+import EventBus from './event-bus.js';
 import { SYLLABUS_DATA } from './syllabus-data.js';
 
 /** Whether the admin is currently authenticated */
@@ -76,6 +77,10 @@ const AdminPanel = {
 
     // Re-render syllabus page
     UIRenderer.renderSubjectCards(SyllabusTracker.getState(), StudyPlanner.getTodaysPlan());
+
+    // FIX: Emit event to trigger plan recalculation (new lesson added to syllabus)
+    EventBus.emit('syllabus:changed', { type: 'lesson_added', lessonId, subjectId });
+    StudyPlanner.recalculate();
   },
 
   /**
@@ -101,6 +106,10 @@ const AdminPanel = {
 
     // Re-render syllabus page
     UIRenderer.renderSubjectCards(SyllabusTracker.getState(), StudyPlanner.getTodaysPlan());
+
+    // FIX: Emit event to trigger plan recalculation (lesson removed from syllabus)
+    EventBus.emit('syllabus:changed', { type: 'lesson_removed', lessonId, subjectId });
+    StudyPlanner.recalculate();
   },
 
   /**

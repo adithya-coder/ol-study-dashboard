@@ -8,6 +8,7 @@
  */
 
 import StorageEngine from './storage.js';
+import EventBus from './event-bus.js';
 
 /** Year range for past papers */
 const YEAR_START = 2015;
@@ -64,6 +65,9 @@ const PastPaperTracker = {
     }
 
     this._persist();
+
+    // FIX: Emit event to notify dashboard of updated past paper stats
+    EventBus.emit('pastpaper:attempted', { subjectId, year, score });
   },
 
   /**

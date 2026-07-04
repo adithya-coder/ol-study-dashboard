@@ -577,6 +577,24 @@ function wireEventListeners() {
       renderPastPapersPage();
     }, 50);
   });
+
+  // FIX: syllabus:changed → refresh plan and UI when lessons are added/removed via admin panel
+  EventBus.on('syllabus:changed', (data) => {
+    if (!initialized) return;
+    // Plan recalculation is triggered directly in admin.js via StudyPlanner.recalculate()
+    // This listener just ensures UI refreshes
+    setTimeout(() => {
+      refreshDashboard();
+      UIRenderer.renderProgress(buildProgressData());
+      renderFullPlan();
+    }, 50);
+  });
+
+  // pastpaper:attempted → refresh exam readiness stats when past papers are recorded
+  EventBus.on('pastpaper:attempted', () => {
+    if (!initialized) return;
+    refreshDashboard(); // Updates exam readiness % which includes past paper completion
+  });
 }
 
 // ─── Initialization Sequence ────────────────────────────────────────────────
