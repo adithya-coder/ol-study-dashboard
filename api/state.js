@@ -47,17 +47,8 @@ export default async function handler(req, res) {
     return {};
   }
 
-  // Helper: write state to blob
+  // Helper: write state to blob (overwrite, no delete needed)
   async function writeState(state) {
-    // Delete old blobs
-    try {
-      const { blobs } = await blob.list({ prefix: BLOB_NAME, token });
-      if (blobs.length > 0) {
-        await blob.del(blobs.map(b => b.url), { token });
-      }
-    } catch (e) {}
-
-    // Write new blob
     await blob.put(BLOB_NAME, JSON.stringify(state), {
       access: 'private',
       contentType: 'application/json',
@@ -79,16 +70,30 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { key } = req.query;
-      let state = await readState();
+      
+      // Retry logic for race conditions
+      let attempts = 0;
+      while (attempts < 3) {
+        try {
+          let state = await readState();
 
-      if (key) {
-        state[key] = req.body;
-      } else {
-        state = req.body;
+          if (key) {
+            state[key] = req.body;
+          } else {
+            state = req.body;
+          }
+
+          await writeState(state);
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          if (err.message && err.message.includes('conflicting operation') && attempts < 2) {
+            attempts++;
+            await new Promise(r => setTimeout(r, 100 * attempts)); // Wait 100ms, 200ms
+            continue;
+          }
+          throw err;
+        }
       }
-
-      await writeState(state);
-      return res.status(200).json({ success: true });
     } catch (err) {
       console.error('[POST]', err.message);
       return res.status(500).json({ success: false, error: err.message });
