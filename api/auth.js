@@ -60,22 +60,20 @@ export default async function handler(req, res) {
     });
   }
 
-  // Simple hash (not cryptographically secure, but adequate for this app)
+  // Simple but deterministic hash
   async function hashPassword(pass) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(pass + 'ol2026salt');
-    if (typeof crypto !== 'undefined' && crypto.subtle) {
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const str = pass + 'ol2026salt_' + safeUsername;
+    let h1 = 0x9e3779b9, h2 = 0x6c62272e;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 0x9e3779b9);
+      h2 = Math.imul(h2 ^ ch, 0x6c62272e);
     }
-    // Fallback: simple hash
-    let hash = 0;
-    for (let i = 0; i < pass.length; i++) {
-      hash = ((hash << 5) - hash) + pass.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash).toString(36);
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 0x85ebca6b);
+    h1 = Math.imul(h1 ^ (h1 >>> 13), 0xc2b2ae35);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 0x85ebca6b);
+    h2 = Math.imul(h2 ^ (h2 >>> 13), 0xc2b2ae35);
+    return ((h1 ^ h2) >>> 0).toString(36) + (Math.abs(h1) >>> 0).toString(36);
   }
 
   try {
