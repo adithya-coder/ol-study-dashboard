@@ -20,10 +20,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       if (blob && process.env.BLOB_READ_WRITE_TOKEN) {
-        // List blobs to find our file
         const { blobs } = await blob.list({ prefix: BLOB_NAME });
         if (blobs.length > 0) {
-          const response = await fetch(blobs[0].url);
+          const response = await fetch(blobs[0].downloadUrl);
           const data = await response.json();
           return res.status(200).json(data);
         }
@@ -73,8 +72,8 @@ export default async function handler(req, res) {
 
         // Upload new state
         await blob.put(BLOB_NAME, JSON.stringify(state), {
-          access: 'public',
-          contentType: 'application/json'
+          contentType: 'application/json',
+          addRandomSuffix: false
         });
       }
 
