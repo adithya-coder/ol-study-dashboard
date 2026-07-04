@@ -5,7 +5,7 @@ const HASH_VERSION = 'v1';
 const REGISTRY_BLOB = 'system/users.json';
 
 // =====================
-// HASH FUNCTION
+// HASH
 // =====================
 function hashPassword(username, password, version = HASH_VERSION) {
   const cleanUser = username.trim().toLowerCase();
@@ -18,62 +18,78 @@ function hashPassword(username, password, version = HASH_VERSION) {
 }
 
 // =====================
-// LOAD USERS
+// LOAD REGISTRY (WITH LOGS)
 // =====================
 async function loadRegistry() {
   try {
+    console.log('📦 [LOAD] Fetching blob:', REGISTRY_BLOB);
+
     const blob = await get(REGISTRY_BLOB);
-    if (!blob) return {};
+
+    if (!blob) {
+      console.log('⚠️ [LOAD] Blob is NULL');
+      return {};
+    }
 
     const text = await blob.text();
-    return text ? JSON.parse(text) : {};
+
+    console.log('📄 [LOAD] Raw blob text:', text);
+
+    if (!text) {
+      console.log('⚠️ [LOAD] Blob is EMPTY');
+      return {};
+    }
+
+    const parsed = JSON.parse(text);
+
+    console.log('✅ [LOAD] Parsed registry keys:', Object.keys(parsed));
+
+    return parsed;
   } catch (err) {
-    console.log('[loadRegistry error]', err.message);
+    console.log('❌ [LOAD ERROR]', err.message);
     return {};
   }
 }
 
 // =====================
-// SAVE USERS
+// SAVE REGISTRY (WITH LOGS)
 // =====================
 async function saveRegistry(data) {
+  console.log('💾 [SAVE] Saving users:', Object.keys(data));
+
   await put(REGISTRY_BLOB, JSON.stringify(data, null, 2), {
     access: 'private',
     contentType: 'application/json',
     allowOverwrite: true
   });
+
+  console.log('✅ [SAVE] Saved successfully');
 }
 
 // =====================
-// MAIN HANDLER
+// HANDLER
 // =====================
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
   if (req.method !== 'POST') {
-    return res.status(405).json({
-      success: false,
-      error: 'Method not allowed'
-    });
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
   const { action } = req.query;
   const { username, password } = req.body || {};
 
+  console.log('🚀 [REQUEST]', { action, username });
+
   if (!username || !password) {
-    return res.status(400).json({
-      success: false,
-      error: 'Username and password required'
-    });
+    console.log('❌ Missing credentials');
+    return res.status(400).json({ error: 'Username and password required' });
   }
 
-  // =====================
-  // CLEAN INPUT (IMPORTANT)
-  // =====================
   const safeUsername = username
     .trim()
     .toLowerCase()
@@ -82,29 +98,32 @@ export default async function handler(req, res) {
 
   const safePassword = password.trim();
 
-  if (!safeUsername || !safePassword) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid username or password'
-    });
-  }
+  console.log('🔐 [NORMALIZED]', {
+    raw: username,
+    safeUsername,
+    passwordLength: safePassword.length
+  });
 
   try {
     const registry = await loadRegistry();
+
+    const hashed = hashPassword(safeUsername, safePassword);
+
+    console.log('🔑 [HASH]', hashed);
 
     // =====================
     // REGISTER
     // =====================
     if (action === 'register') {
+      console.log('🟢 REGISTER FLOW');
+
       if (registry[safeUsername]) {
-        return res.status(409).json({
-          success: false,
-          error: 'Username already exists'
-        });
+        console.log('⚠️ User already exists');
+        return res.status(409).json({ error: 'Username already exists' });
       }
 
       registry[safeUsername] = {
-        hash: hashPassword(safeUsername, safePassword),
+        hash: hashed,
         version: HASH_VERSION,
         created: new Date().toISOString()
       };
@@ -113,8 +132,7 @@ export default async function handler(req, res) {
 
       return res.json({
         success: true,
-        userId: safeUsername,
-        username: safeUsername
+        userId: safeUsername
       });
     }
 
@@ -122,45 +140,50 @@ export default async function handler(req, res) {
     // LOGIN
     // =====================
     if (action === 'login') {
+      console.log('🔵 LOGIN FLOW');
+
+      console.log('🔎 Looking for user:', safeUsername);
+      console.log('📚 Available users:', Object.keys(registry));
+
       const user = registry[safeUsername];
 
       if (!user) {
+        console.log('❌ USER NOT FOUND');
         return res.status(401).json({
           success: false,
           error: 'User not found'
         });
       }
 
-      const hashed = hashPassword(
+      const hashedInput = hashPassword(
         safeUsername,
         safePassword,
         user.version || HASH_VERSION
       );
 
-      if (user.hash !== hashed) {
+      console.log('🔍 Stored hash:', user.hash);
+      console.log('🔍 Input hash:', hashedInput);
+
+      if (user.hash !== hashedInput) {
+        console.log('❌ PASSWORD MISMATCH');
         return res.status(401).json({
           success: false,
           error: 'Invalid password'
         });
       }
 
+      console.log('✅ LOGIN SUCCESS');
+
       return res.json({
         success: true,
-        userId: safeUsername,
-        username: safeUsername
+        userId: safeUsername
       });
     }
 
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid action'
-    });
+    return res.status(400).json({ error: 'Invalid action' });
 
   } catch (err) {
-    console.error('[AUTH ERROR]', err);
-    return res.status(500).json({
-      success: false,
-      error: err.message
-    });
+    console.log('🔥 FATAL ERROR:', err);
+    return res.status(500).json({ error: err.message });
   }
 }
