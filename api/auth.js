@@ -1,8 +1,52 @@
-// /api/auth - FIXED VERSION
-
 import crypto from 'crypto';
 import { get, put } from '@vercel/blob';
 
+const HASH_VERSION = 'v1';
+const REGISTRY_BLOB = 'system/users.json';
+
+// =====================
+// HASH FUNCTION
+// =====================
+function hashPassword(username, password, version = HASH_VERSION) {
+  const cleanUser = username.trim().toLowerCase();
+  const cleanPass = password.trim();
+
+  return crypto
+    .createHash('sha256')
+    .update(`${version}:${cleanUser}:${cleanPass}`)
+    .digest('hex');
+}
+
+// =====================
+// LOAD USERS
+// =====================
+async function loadRegistry() {
+  try {
+    const blob = await get(REGISTRY_BLOB);
+    if (!blob) return {};
+
+    const text = await blob.text();
+    return text ? JSON.parse(text) : {};
+  } catch (err) {
+    console.log('[loadRegistry error]', err.message);
+    return {};
+  }
+}
+
+// =====================
+// SAVE USERS
+// =====================
+async function saveRegistry(data) {
+  await put(REGISTRY_BLOB, JSON.stringify(data, null, 2), {
+    access: 'private',
+    contentType: 'application/json',
+    allowOverwrite: true
+  });
+}
+
+// =====================
+// MAIN HANDLER
+// =====================
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,7 +55,10 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
+    return res.status(405).json({
+      success: false,
+      error: 'Method not allowed'
+    });
   }
 
   const { action } = req.query;
@@ -24,7 +71,9 @@ export default async function handler(req, res) {
     });
   }
 
-  // ✅ STRICT normalization (IMPORTANT FIX)
+  // =====================
+  // CLEAN INPUT (IMPORTANT)
+  // =====================
   const safeUsername = username
     .trim()
     .toLowerCase()
@@ -36,53 +85,16 @@ export default async function handler(req, res) {
   if (!safeUsername || !safePassword) {
     return res.status(400).json({
       success: false,
-      error: 'Invalid username or password format'
-    });
-  }
-
-  const REGISTRY_BLOB = 'system/users.json';
-
-  // ✅ FIXED HASH (MUST MATCH BOTH SIDES EXACTLY)
-  function hashPassword(user, pass) {
-    return crypto
-      .createHash('sha256')
-      .update(`${user}:${pass}`)
-      .digest('hex');
-  }
-
-  async function loadRegistry() {
-    try {
-      const blob = await get(REGISTRY_BLOB);
-      if (!blob) return {};
-
-      const text = await blob.text();
-      return text ? JSON.parse(text) : {};
-    } catch (err) {
-      console.log('[loadRegistry error]', err.message);
-      return {};
-    }
-  }
-
-  async function saveRegistry(data) {
-    await put(REGISTRY_BLOB, JSON.stringify(data, null, 2), {
-      access: 'private',
-      contentType: 'application/json',
-      allowOverwrite: true
+      error: 'Invalid username or password'
     });
   }
 
   try {
     const registry = await loadRegistry();
 
-    const hashed = hashPassword(safeUsername, safePassword);
-
-    console.log('[AUTH]', action);
-    console.log('User:', safeUsername);
-    console.log('Hash:', hashed);
-
-    // =========================
+    // =====================
     // REGISTER
-    // =========================
+    // =====================
     if (action === 'register') {
       if (registry[safeUsername]) {
         return res.status(409).json({
@@ -92,7 +104,8 @@ export default async function handler(req, res) {
       }
 
       registry[safeUsername] = {
-        hash: hashed,
+        hash: hashPassword(safeUsername, safePassword),
+        version: HASH_VERSION,
         created: new Date().toISOString()
       };
 
@@ -105,9 +118,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // =========================
+    // =====================
     // LOGIN
-    // =========================
+    // =====================
     if (action === 'login') {
       const user = registry[safeUsername];
 
@@ -117,6 +130,12 @@ export default async function handler(req, res) {
           error: 'User not found'
         });
       }
+
+      const hashed = hashPassword(
+        safeUsername,
+        safePassword,
+        user.version || HASH_VERSION
+      );
 
       if (user.hash !== hashed) {
         return res.status(401).json({
