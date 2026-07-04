@@ -1,5 +1,5 @@
 // Vercel Serverless Function: /api/state
-// Per-user data stored in Vercel Blob as {userId}/app-state.json
+// Per-user data stored in Vercel Blob as users/{userId}/app-state.json
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -10,8 +10,6 @@ export default async function handler(req, res) {
 
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   const userId = req.headers['x-user-id'] || req.query.userId || 'default';
-
-  // Sanitize userId (only alphanumeric + dash + underscore)
   const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32) || 'default';
 
   if (!token) {
@@ -33,8 +31,8 @@ export default async function handler(req, res) {
     try {
       const { blobs } = await blob.list({ prefix: BLOB_NAME, token });
       if (blobs.length > 0) {
-        const signedUrl = await blob.getDownloadUrl(blobs[0].url, { token });
-        const response = await fetch(signedUrl, { cache: 'no-store' });
+        const signedUrl = await blob.presignUrl(blobs[0].url, { token, operation: 'get', expiresIn: 60 });
+        const response = await fetch(signedUrl);
         if (response.ok) {
           const text = await response.text();
           if (text) {
@@ -45,12 +43,9 @@ export default async function handler(req, res) {
           }
         }
       }
-    } catch (e) { console.error('[readState]', e.message); }
-    return {};
-  }
-        }
-      }
-    } catch (e) { console.error('[readState]', e.message); }
+    } catch (e) {
+      console.error('[readState]', e.message);
+    }
     return {};
   }
 
@@ -78,16 +73,11 @@ export default async function handler(req, res) {
     while (attempts < 3) {
       try {
         const { key } = req.query;
-
-        // ALWAYS load existing state first, then merge — never overwrite entirely
         let state = await readState();
 
         if (key) {
-          // Patch a single module key
           state[key] = req.body;
         } else if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
-          // Merge partial state — only update keys that are present in the body
-          // This prevents stale/incomplete data from overwriting valid saved data
           for (const [k, v] of Object.entries(req.body)) {
             if (v !== null && v !== undefined) {
               state[k] = v;

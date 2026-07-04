@@ -45,17 +45,18 @@ export default async function handler(req, res) {
   async function loadRegistry() {
     try {
       const { blobs } = await blob.list({ prefix: REGISTRY_BLOB, token });
+      console.log('[loadRegistry] blobs found:', blobs.length, 'for prefix:', REGISTRY_BLOB);
       if (blobs.length > 0) {
-        // Use presigned URL which works server-side
         const signedUrl = await blob.presignUrl(blobs[0].url, { token, operation: 'get', expiresIn: 60 });
         const response = await fetch(signedUrl);
+        console.log('[loadRegistry] fetch status:', response.status);
         if (response.ok) {
           const text = await response.text();
           if (text) return JSON.parse(text);
         }
       }
     } catch (e) {
-      console.error('[loadRegistry]', e.message);
+      console.error('[loadRegistry error]', e.message);
     }
     return {};
   }
